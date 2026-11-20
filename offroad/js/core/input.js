@@ -31,7 +31,19 @@
     }
   };
 
+  // keys typed into a form field (dev tuning panel) stay there; a focused
+  // slider keeps its arrow keys but WASD still drives
+  function inField(e) {
+    var t = e.target;
+    if (!t || !t.tagName) return false;
+    if (t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return true;
+    if (t.tagName !== 'INPUT') return false;
+    if (t.type === 'range') return /^Arrow|^Page|^Home$|^End$/.test(e.code);
+    return t.type !== 'checkbox';
+  }
+
   window.addEventListener('keydown', function (e) {
+    if (inField(e)) return;
     var k = keyMap[e.code];
     if (k && input.capture()) { state[k] = true; e.preventDefault(); }
     if (input.onKey) input.onKey(e.code);

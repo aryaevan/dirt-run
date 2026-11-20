@@ -36,6 +36,7 @@
     if (key === carKey) return;
     carKey = key;
     var tune = DR.tuning[id](levels);
+    if (DR.dev) DR.dev.applyOverrides(id, tune);
     var model = DR.assets[id].build(tune, levels);
     if (player.group) {
       DR.stage.scene.remove(player.group);
@@ -44,6 +45,7 @@
     player.setup(model, tune);
     player.carId = id;
     DR.stage.scene.add(model.group);
+    if (DR.dev) DR.dev.onCarChanged();
   };
 
   DR.setMode = function (id) {

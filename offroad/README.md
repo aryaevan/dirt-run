@@ -21,6 +21,7 @@ js/
   world/              terrain.js (shared heightfield), valley.js (exploration), ridge.js (racing)
   physics/            vehicle.js (shared vehicle physics), tuning.js (per-car numbers)
   fx/                 particles.js (dust, splashes, pickup bursts)
+  dev/                tuner.js (live car tuning panel: press ` or open index.html?dev)
   modes/              menu.js, exploration.js, racing.js
   main.js             main loop, world and car switching
 ```
