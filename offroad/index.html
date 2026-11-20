@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dirt Run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="stage"></div>
+
+<!-- ================= main menu ================= -->
+<div class="overlay" id="menu" hidden>
+  <div class="card panel">
+    <h1>Dirt Run</h1>
+    <p>Two ways to go off-road. Same trucks, same dirt.</p>
+    <button class="mode-btn" id="menuExplore">
+      <b>Exploration</b>
+      <span>Roam the open valley and hunt down eight flags against the clock.</span>
+      <small id="menuExploreRec"></small>
+    </button>
+    <button class="mode-btn" id="menuRace">
+      <b>Racing</b>
+      <span>Climb the ridge on one tank of fuel, earn coins and upgrade your buggy.</span>
+      <small id="menuRaceRec"></small>
+    </button>
+  </div>
+</div>
+
+<!-- ================= exploration ================= -->
+<dl id="trip" class="panel" hidden>
+  <dt>Flags</dt><dd id="hFlags">0 / 8</dd>
+  <dt>Time</dt><dd id="hTime">0:00.0</dd>
+  <dt>Next flag</dt><dd id="hNext">–</dd>
+</dl>
+<div id="gauge" hidden><b id="hSpeed">0</b><span>km/h</span></div>
+<div id="help" class="panel" hidden>
+  <kbd>W</kbd><kbd>S</kbd> drive and reverse &nbsp; <kbd>A</kbd><kbd>D</kbd> steer<br>
+  <kbd>Space</kbd> handbrake &nbsp; <kbd>R</kbd> flip upright &nbsp; <kbd>C</kbd> camera &nbsp; <kbd>Esc</kbd> menu
+</div>
+<button id="exMenuBtn" class="panel corner-btn" hidden>Menu</button>
+
+<div class="overlay" id="exStart" hidden>
+  <div class="card panel">
+    <h2>Flag hunt</h2>
+    <p>Eight orange flags are scattered across the valley. Follow the arrow over your car, climb the ridges, splash through the lake, and collect them all as fast as you can.</p>
+    <div class="seg" id="carPick" role="group" aria-label="Choose your car">
+      <button data-car="truck" aria-pressed="true">Truck</button>
+      <button data-car="buggy" aria-pressed="false">Buggy</button>
+    </div>
+    <p class="hint" id="carHint"></p>
+    <button class="btn" id="exStartBtn">Start driving</button>
+    <button class="btn-link" id="exBackBtn">Back to menu</button>
+  </div>
+</div>
+
+<div class="overlay" id="exDone" hidden>
+  <div class="card panel">
+    <h2>All flags collected</h2>
+    <div class="big" id="doneTime">0:00.0</div>
+    <p id="doneBest">&nbsp;</p>
+    <button class="btn" id="againBtn">Drive again</button>
+    <button class="btn-link" id="doneMenuBtn">Back to menu</button>
+  </div>
+</div>
+
+<!-- ================= racing ================= -->
+<aside id="garage" class="panel" aria-label="Garage" hidden>
+  <header><h1>Garage</h1><div class="wallet"><span id="gCoins">0</span> <small>coins</small></div></header>
+  <p class="sub">Upgrade your buggy, then see how far up the ridge it gets.</p>
+  <div id="parts"></div>
+  <footer>
+    <button class="btn" id="runBtn">Start test run</button>
+    <div class="foot">
+      <span id="gBest">No runs yet</span>
+      <span><button class="text-btn" id="garageMenuBtn">Main menu</button> · <button class="text-btn" id="resetBtn">Reset progress</button></span>
+    </div>
+  </footer>
+</aside>
+
+<div id="hud" class="panel" hidden>
+  <div class="dist"><span id="hDist">0</span> <small>m</small></div>
+  <div class="fuel"><span>Fuel</span><div class="bar" id="fuelBar"><i id="fuelFill"></i></div></div>
+  <div class="runcoins"><span id="hCoins">0</span></div>
+</div>
+<button id="quitBtn" class="panel corner-btn" hidden>End run</button>
+<div id="keys" class="panel" hidden><kbd>W</kbd> gas &nbsp; <kbd>S</kbd> brake and reverse &nbsp; <kbd>A</kbd><kbd>D</kbd> steer<br>In the air, gas tilts the nose up and brake tilts it down &nbsp; <kbd>C</kbd> camera</div>
+
+<div class="overlay" id="result" hidden>
+  <div class="card panel" role="dialog" aria-labelledby="rTitle">
+    <h2 id="rTitle">Out of fuel</h2>
+    <p class="why" id="rWhy"></p>
+    <dl>
+      <dt>Distance</dt><dd id="rDist">0 m</dd>
+      <dt>Coins picked up</dt><dd id="rCoins">0</dd>
+      <dt>Distance bonus</dt><dd id="rBonus">0</dd>
+      <div class="total" style="display:contents"><dt>Earned</dt><dd id="rTotal">0</dd></div>
+    </dl>
+    <button class="btn" id="backBtn">Back to garage</button>
+  </div>
+</div>
+
+<!-- ================= touch controls (shared) ================= -->
+<div id="touch" hidden>
+  <button class="tbtn" id="tL" data-k="left" aria-label="Steer left">◀</button>
+  <button class="tbtn" id="tR" data-k="right" aria-label="Steer right">▶</button>
+  <button class="tbtn" id="tBrake" data-k="down" aria-label="Brake and reverse">Brake</button>
+  <button class="tbtn" id="tGas" data-k="up" aria-label="Accelerate">Gas</button>
+  <button class="tbtn" id="tHand" data-k="brake" aria-label="Handbrake">Drift</button>
+  <button class="tbtn" id="tReset" data-k="reset" aria-label="Flip upright">Flip</button>
+</div>
+
+<!-- Three.js, then the game. Order matters: each file uses what the ones above it define. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script src="js/core/namespace.js"></script>
+<script src="js/core/noise.js"></script>
+<script src="js/core/storage.js"></script>
+<script src="js/core/stage.js"></script>
+<script src="js/core/input.js"></script>
+<script src="js/core/camera.js"></script>
+
+<script src="js/assets/materials.js"></script>
+<script src="js/assets/helpers.js"></script>
+<script src="js/assets/wheel.js"></script>
+<script src="js/assets/truck.js"></script>
+<script src="js/assets/buggy.js"></script>
+<script src="js/assets/tree.js"></script>
+<script src="js/assets/rock.js"></script>
+<script src="js/assets/beacon.js"></script>
+<script src="js/assets/flag.js"></script>
+<script src="js/assets/water.js"></script>
+<script src="js/assets/coin.js"></script>
+<script src="js/assets/fuel-can.js"></script>
+<script src="js/assets/track-props.js"></script>
+<script src="js/assets/nav-arrow.js"></script>
+
+<script src="js/world/terrain.js"></script>
+<script src="js/world/valley.js"></script>
+<script src="js/world/ridge.js"></script>
+
+<script src="js/physics/tuning.js"></script>
+<script src="js/physics/vehicle.js"></script>
+<script src="js/fx/particles.js"></script>
+
+<script src="js/modes/menu.js"></script>
+<script src="js/modes/exploration.js"></script>
+<script src="js/modes/racing.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

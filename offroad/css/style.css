@@ -1,0 +1,143 @@
+/* ================= tokens ================= */
+:root{
+  --sky:#9cc3d9;
+  --panel:rgba(250,244,232,0.9);
+  --ink:#2a2118;
+  --muted:#6b5c49;
+  --signal:#e2560f;
+  --signal-ink:#ffffff;
+  --gold:#b98a00;
+  --edge:rgba(42,33,24,0.16);
+  --well:rgba(42,33,24,0.08);
+  --danger:#c62f1d;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --panel:rgba(30,25,20,0.88); --ink:#f3e9da; --muted:#bba98f; --signal:#ff7a33; --signal-ink:#1d140c;
+    --gold:#f2c230; --edge:rgba(243,233,218,0.18); --well:rgba(243,233,218,0.1); --danger:#ff6a55; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --panel:rgba(30,25,20,0.88); --ink:#f3e9da; --muted:#bba98f; --signal:#ff7a33; --signal-ink:#1d140c;
+  --gold:#f2c230; --edge:rgba(243,233,218,0.18); --well:rgba(243,233,218,0.1); --danger:#ff6a55; color-scheme:dark;
+}
+
+/* ================= base ================= */
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--sky);color:var(--ink);
+  font-family:"Chakra Petch",ui-rounded,"Segoe UI",system-ui,sans-serif;-webkit-user-select:none;user-select:none}
+#stage{position:fixed;inset:0;touch-action:none}
+#stage canvas{display:block;width:100%;height:100%}
+button{font:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+[hidden]{display:none !important}
+.panel{background:var(--panel);border:1px solid var(--edge);border-radius:14px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+kbd{font-family:inherit;font-weight:700;color:var(--ink);background:var(--well);border-radius:5px;padding:0 6px}
+
+/* buttons */
+.btn{display:block;width:100%;border:0;border-radius:12px;padding:13px;background:var(--signal);color:var(--signal-ink);font-weight:700;font-size:18px}
+.btn-link{display:block;width:100%;margin-top:8px;padding:8px 0;background:none;border:0;color:var(--muted);text-decoration:underline;font-size:14px}
+.text-btn{background:none;border:0;color:var(--muted);text-decoration:underline;padding:4px 0;font-size:13px}
+.text-btn.arm{color:var(--danger)}
+.corner-btn{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:14px;padding:9px 14px;border-radius:10px;color:var(--ink);font-weight:700;font-size:14px}
+
+/* ================= overlays and cards ================= */
+.overlay{position:fixed;inset:0;display:grid;place-items:center;padding:20px;background:rgba(20,14,8,0.28);overflow-y:auto}
+.card{max-width:420px;width:100%;padding:26px}
+.card h1{margin:0 0 6px;font-size:44px;line-height:1;font-weight:700;color:var(--signal);letter-spacing:-0.01em}
+.card h2{margin:0 0 6px;font-size:30px;line-height:1.1;font-weight:700}
+.card p{margin:0 0 16px;color:var(--muted);font-size:16px;line-height:1.45}
+.card p.hint{font-size:14px;margin:0 0 16px;min-height:1.45em}
+.card .big{font-size:40px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums;margin:4px 0 2px}
+.card .why{margin:0 0 16px;color:var(--muted)}
+.card dl{display:grid;grid-template-columns:1fr auto;gap:6px 16px;margin:0 0 18px;font-size:16px}
+.card dt{color:var(--muted)}
+.card dd{margin:0;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.card .total dt,.card .total dd{font-size:22px;color:var(--gold);padding-top:6px;border-top:1px solid var(--edge)}
+
+/* menu */
+.mode-btn{display:block;width:100%;text-align:left;margin-top:10px;padding:14px 16px;border:1px solid var(--edge);border-radius:12px;background:var(--well);color:var(--ink)}
+.mode-btn:hover{border-color:var(--signal)}
+.mode-btn b{display:block;font-size:22px;color:var(--signal)}
+.mode-btn span{display:block;margin-top:2px;font-size:14px;line-height:1.4;color:var(--muted)}
+.mode-btn small{display:block;margin-top:6px;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+
+/* car picker */
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;margin:0 0 8px;background:var(--well);border-radius:12px}
+.seg button{border:0;border-radius:9px;padding:9px;background:none;color:var(--muted);font-weight:700;font-size:16px}
+.seg button[aria-pressed="true"]{background:var(--signal);color:var(--signal-ink)}
+
+/* ================= exploration HUD ================= */
+#trip{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);left:14px;padding:10px 16px;display:grid;grid-template-columns:auto auto;gap:2px 18px;font-size:15px;margin:0}
+#trip dt{color:var(--muted)}
+#trip dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+#gauge{position:fixed;right:18px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);text-align:right;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,0.45);pointer-events:none}
+#gauge b{display:block;font-size:clamp(56px,10vw,96px);line-height:0.9;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+#gauge span{font-size:16px;opacity:0.9}
+#help{position:fixed;left:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);padding:10px 14px;font-size:13px;line-height:1.7;color:var(--muted)}
+
+/* ================= racing: garage ================= */
+#garage{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);right:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);
+  width:min(400px, calc(100vw - 28px));display:flex;flex-direction:column;padding:18px 18px 16px;border-radius:16px}
+#garage header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:4px}
+#garage h1{margin:0;font-size:30px;line-height:1;color:var(--signal)}
+.wallet{font-size:26px;font-weight:700;color:var(--gold);font-variant-numeric:tabular-nums;white-space:nowrap}
+.wallet small{font-size:14px;color:var(--muted);font-weight:500}
+#garage .sub{margin:2px 0 12px;color:var(--muted);font-size:14px}
+#parts{flex:1;overflow-y:auto;margin:0 -6px;padding:0 6px}
+.part{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:11px 0;border-top:1px solid var(--edge)}
+.part h3{margin:0;font-size:17px}
+.part p{margin:0;font-size:13px;color:var(--muted);line-height:1.35}
+.pips{display:flex;gap:3px;margin-top:5px}
+.pip{width:16px;height:6px;border-radius:3px;background:var(--well)}
+.pip.on{background:var(--signal)}
+.buy{grid-column:2;grid-row:1 / span 3;align-self:center;min-width:92px;border:0;border-radius:10px;padding:9px 10px;background:var(--signal);color:var(--signal-ink);font-weight:700;font-size:15px}
+.buy:disabled{background:var(--well);color:var(--muted);cursor:default}
+#garage footer{padding-top:12px;border-top:1px solid var(--edge)}
+#runBtn{font-size:20px;padding:14px}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px;font-size:13px;color:var(--muted)}
+@media (max-width:640px){
+  #garage{top:auto;left:10px;right:10px;width:auto;max-height:56vh;bottom:calc(env(safe-area-inset-bottom,0px) + 10px);padding:14px}
+  #garage h1{font-size:24px}
+}
+
+/* ================= racing: run HUD ================= */
+#hud{position:fixed;top:calc(env(safe-area-inset-top,0px) + 14px);left:50%;transform:translateX(-50%);display:flex;gap:18px;align-items:center;padding:10px 18px}
+#hud .dist{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;min-width:100px;text-align:right}
+#hud .dist small{font-size:15px;color:var(--muted);font-weight:500}
+.fuel{width:150px}
+.fuel span{font-size:13px;color:var(--muted)}
+.bar{height:10px;border-radius:5px;background:var(--well);overflow:hidden;margin-top:3px}
+.bar i{display:block;height:100%;width:100%;background:var(--signal);border-radius:5px}
+.bar.low i{background:var(--danger)}
+#hud .runcoins{font-size:20px;font-weight:700;color:var(--gold);font-variant-numeric:tabular-nums}
+#keys{position:fixed;left:14px;bottom:calc(env(safe-area-inset-bottom,0px) + 14px);padding:9px 13px;font-size:13px;color:var(--muted);line-height:1.6}
+@media (max-width:640px){
+  #hud{gap:10px;padding:8px 12px}
+  #hud .dist{font-size:22px;min-width:70px}
+  .fuel{width:90px}
+  #quitBtn{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 128px)}
+}
+
+/* ================= touch controls ================= */
+#touch{display:none}
+@media (pointer:coarse){
+  #help,#keys{display:none}
+  #touch:not([hidden]){display:block}
+  #gauge{bottom:calc(env(safe-area-inset-bottom,0px) + 150px)}
+}
+.tbtn{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 22px);width:74px;height:74px;border-radius:50%;touch-action:none;
+  background:var(--panel);border:1px solid var(--edge);color:var(--ink);font-weight:700;font-size:15px;display:grid;place-items:center}
+.tbtn.on{background:var(--signal);color:var(--signal-ink)}
+#tL{left:18px}
+#tR{left:104px}
+#tGas{right:18px;width:84px;height:84px}
+#tBrake{right:112px}
+#tHand{right:56px;bottom:calc(env(safe-area-inset-bottom,0px) + 118px);width:58px;height:58px;font-size:12px}
+#tReset{left:18px;bottom:calc(env(safe-area-inset-bottom,0px) + 108px);width:52px;height:52px;font-size:12px}
+@media (prefers-reduced-motion: reduce){ .overlay{backdrop-filter:none} }
