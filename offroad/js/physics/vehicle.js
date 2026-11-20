@@ -1,7 +1,9 @@
 /*
  * Vehicle physics shared by both cars and both modes.
  *
- * A rigid body with four raycast wheels: spring and damper suspension, tyre
+ * A rigid body with four raycast wheels: per-axle suspension (spring with
+ * preload/ride height, bilinear bump and rebound damping with a knee, bump
+ * stop, anti-roll bar; all set in physics/tuning.js), tyre
  * grip with a friction circle, engine and brakes, ground contact for the body
  * corners, water buoyancy, tree and rock collisions, plus some arcade help
  * (self-righting, air control).
@@ -30,6 +32,16 @@
 
   function clampAbs(v, a) { return Math.max(-a, Math.min(a, v)); }
 
+  /**
+   * Bilinear damper. v > 0 is compression (bump), v < 0 is extension (rebound).
+   * Below the knee the slow rate applies, above it the fast rate.
+   */
+  function damperForce(ax, v) {
+    var a = Math.abs(v), slow = Math.min(a, ax.knee), fast = a - slow;
+    return v >= 0 ? ax.bump * slow + ax.fastBump * fast
+                  : -(ax.rebound * slow + ax.fastRebound * fast);
+  }
+
   function Vehicle() {
     this.S = { pos: new V3(), vel: new V3(), w: new V3(), q: new THREE.Quaternion(), steer: 0, throttle: 0 };
     this.group = null;
@@ -48,9 +60,21 @@
     this.hull = model.hull;
     this.radius = model.radius;
     this.T = tune;
-    this.wheels = model.wheels.map(function (w) {
+    // older tunings without a susp block: one linear spring/damper on both axles
+    var legacy = { spring: tune.k, c: tune.c, fsMax: tune.fsMax };
+    var susp = tune.susp || { front: DR.tuning.axle(legacy), rear: DR.tuning.axle(legacy) };
+    var wheels = this.wheels = model.wheels.map(function (w) {
       return { off: w.off, front: w.front, pivot: w.pivot, spin: w.spin,
-        prev: 0, sus: tune.rest, grounded: false, vL: 0, slip: 0 };
+        axle: w.front ? susp.front : susp.rear, pair: -1,
+        prev: 0, sus: tune.rest, grounded: false, vL: 0, slip: 0,
+        comp: 0, cv: 0, d: 0, fs: 0, mount: new V3(), n: new V3() };
+    });
+    // anti-roll bar partner: the wheel on the same axle, other side
+    wheels.forEach(function (w, i) {
+      for (var j = 0; j < wheels.length; j++) {
+        var o = wheels[j];
+        if (j !== i && o.front === w.front && o.off.x * w.off.x < 0) { w.pair = j; break; }
+      }
     });
   };
 
@@ -118,10 +142,10 @@
     var drive = throttle * T.engine * lowBoost * Math.max(0, 1 - absV / vmax);
     var RAD = T.rad, REST = T.rest, maxD = REST + RAD;
 
-    // ---- wheels ----
-    var grounded = 0;
-    for (var i = 0; i < this.wheels.length; i++) {
-      var wh = this.wheels[i];
+    // ---- wheels, pass 1: raycast and suspension compression ----
+    var grounded = 0, i, wh;
+    for (i = 0; i < this.wheels.length; i++) {
+      wh = this.wheels[i];
       _A.copy(wh.off).applyQuaternion(q).add(S.pos);
       _dir.copy(_up).negate();
       wh.grounded = false;
@@ -134,54 +158,71 @@
         if (d < maxD && d > -1.5) {
           wh.grounded = true; grounded++;
           var comp = Math.min(maxD - d, maxD + 0.4);
-          var cv = Math.max(-8, Math.min(8, (comp - wh.prev) / dt));
-          wh.prev = comp;
+          var mv = wh.axle.maxVel;
+          wh.cv = Math.max(-mv, Math.min(mv, (comp - wh.prev) / dt));
+          wh.prev = wh.comp = comp;
+          wh.d = d;
           wh.sus = Math.max(0.02, d - RAD);
-
-          // suspension, with a stiff bump stop near full compression
-          var fs = T.k * comp + T.c * cv, stop = REST * 0.85;
-          if (comp > stop) fs += (comp - stop) * T.k * 5;
-          if (fs < 0) fs = 0; if (fs > T.fsMax) fs = T.fsMax;
+          wh.mount.copy(_A);
           _P.copy(_A).addScaledVector(_dir, d);
-          world.normalAt(_P.x, _P.z, _N);
-          _tmp.copy(_up).multiplyScalar(fs * Math.max(0, _N.dot(_up)));
-          this.addForceAt(_tmp, _A);
-
-          // tyre axes on the ground plane
-          if (wh.front) {
-            var cs = Math.cos(S.steer), sn = Math.sin(S.steer);
-            _wf.copy(_fwd).multiplyScalar(cs).addScaledVector(_rt, sn);
-          } else _wf.copy(_fwd);
-          _f.copy(_wf).addScaledVector(_N, -_wf.dot(_N)).normalize();
-          _s.crossVectors(_N, _f).normalize();
-          this.pointVel(_A, _vp);
-          var vL = _vp.dot(_f), vS = _vp.dot(_s);
-          wh.vL = vL;
-
-          var hand = hb && !wh.front;           // handbrake locks the rear wheels
-          var driven = T.awd || !wh.front;
-          var Fs = -vS * (hand ? T.lat * 0.22 : T.lat);
-          var Fl = driven ? drive * (T.awd ? 0.25 : 0.5) : 0;
-          if (braking) Fl -= clampAbs(vL * 3000, T.brake);
-          if (hand) Fl -= clampAbs(vL * 3000, T.brake * 0.8);
-          if (throttle === 0 && !braking) Fl -= vL * (Math.abs(vL) < T.coastV ? T.coastLow : T.coastHigh);
-
-          // friction circle
-          var maxF = T.mu * fs * (hand ? 0.55 : 1), tot = Math.hypot(Fs, Fl), sat = 0;
-          if (tot > maxF && tot > 0) { var kk = maxF / tot; Fs *= kk; Fl *= kk; sat = 1; }
-          wh.slip = Math.abs(vS) + sat * Math.abs(throttle) * 4;
-          if (sat && throttle !== 0 && driven) wh.vL += throttle * 6; // visible wheelspin
-
-          _tmp.copy(_f).multiplyScalar(Fl).addScaledVector(_s, Fs);
-          _P.copy(_A).addScaledVector(_up, 0.12); // tyre forces applied near centre-of-mass height: arcade anti-roll
-          this.addForceAt(_tmp, _P);
+          world.normalAt(_P.x, _P.z, wh.n);
         }
       }
       if (!wh.grounded) {
-        wh.prev = 0; wh.slip = 0;
+        wh.prev = 0; wh.comp = 0; wh.cv = 0; wh.fs = 0; wh.slip = 0;
         wh.sus += (REST - wh.sus) * Math.min(1, dt * 10);
         wh.vL += (throttle * T.airSpin - wh.vL) * Math.min(1, dt * 0.8);
       }
+    }
+
+    // ---- wheels, pass 2: suspension and tyre forces ----
+    for (i = 0; i < this.wheels.length; i++) {
+      wh = this.wheels[i];
+      if (!wh.grounded) continue;
+      var ax = wh.axle;
+      _A.copy(wh.mount);
+      _N.copy(wh.n);
+
+      // spring (ride height shifts its free length), bilinear damper, bump stop
+      var fs = ax.spring * (wh.comp + REST * ax.rideHeight / 100) + damperForce(ax, wh.cv);
+      var stop = REST * ax.bumpStop;
+      if (wh.comp > stop) fs += (wh.comp - stop) * ax.spring * ax.bumpStopRate;
+      // anti-roll bar: resists a compression difference across the axle
+      // (a wheel in the air counts as fully extended)
+      if (ax.antiRoll && wh.pair >= 0) fs += ax.antiRoll * (wh.comp - this.wheels[wh.pair].comp);
+      if (fs < 0) fs = 0; if (fs > ax.fsMax) fs = ax.fsMax;
+      wh.fs = fs;
+      _tmp.copy(_up).multiplyScalar(fs * Math.max(0, _N.dot(_up)));
+      this.addForceAt(_tmp, _A);
+
+      // tyre axes on the ground plane
+      if (wh.front) {
+        var cs = Math.cos(S.steer), sn = Math.sin(S.steer);
+        _wf.copy(_fwd).multiplyScalar(cs).addScaledVector(_rt, sn);
+      } else _wf.copy(_fwd);
+      _f.copy(_wf).addScaledVector(_N, -_wf.dot(_N)).normalize();
+      _s.crossVectors(_N, _f).normalize();
+      this.pointVel(_A, _vp);
+      var vL = _vp.dot(_f), vS = _vp.dot(_s);
+      wh.vL = vL;
+
+      var hand = hb && !wh.front;           // handbrake locks the rear wheels
+      var driven = T.awd || !wh.front;
+      var Fs = -vS * (hand ? T.lat * 0.22 : T.lat);
+      var Fl = driven ? drive * (T.awd ? 0.25 : 0.5) : 0;
+      if (braking) Fl -= clampAbs(vL * 3000, T.brake);
+      if (hand) Fl -= clampAbs(vL * 3000, T.brake * 0.8);
+      if (throttle === 0 && !braking) Fl -= vL * (Math.abs(vL) < T.coastV ? T.coastLow : T.coastHigh);
+
+      // friction circle
+      var maxF = T.mu * fs * (hand ? 0.55 : 1), tot = Math.hypot(Fs, Fl), sat = 0;
+      if (tot > maxF && tot > 0) { var kk = maxF / tot; Fs *= kk; Fl *= kk; sat = 1; }
+      wh.slip = Math.abs(vS) + sat * Math.abs(throttle) * 4;
+      if (sat && throttle !== 0 && driven) wh.vL += throttle * 6; // visible wheelspin
+
+      _tmp.copy(_f).multiplyScalar(Fl).addScaledVector(_s, Fs);
+      _P.copy(_A).addScaledVector(_up, ax.tyreForceHeight); // tyre forces applied near centre-of-mass height: arcade anti-roll
+      this.addForceAt(_tmp, _P);
     }
 
     // ---- body corners hitting the ground (rollovers, hard landings) ----
